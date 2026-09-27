@@ -1,0 +1,599 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Overview and integration status
+  - name: products
+    description: Synced Komerza catalogue
+  - name: tickets
+    description: Discord ticket workflow
+  - name: payments
+    description: Litecoin invoices and verification
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary
+      responses:
+        "200":
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /system/status:
+    get:
+      operationId: getSystemStatus
+      tags: [dashboard]
+      summary: Get integration and system status
+      responses:
+        "200":
+          description: Integration status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List synced products
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: stock
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, in_stock, low_stock, out_of_stock]
+            default: all
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+  /products/sync:
+    post:
+      operationId: syncProducts
+      tags: [products]
+      summary: Sync products from Komerza
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductSyncInput"
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductSyncResult"
+        "503":
+          description: Komerza is not configured or unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tickets:
+    get:
+      operationId: listTickets
+      tags: [tickets]
+      summary: List Discord ticket channels
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, open, waiting_payment, paid, closed]
+            default: all
+      responses:
+        "200":
+          description: Ticket list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ticket"
+  /tickets/{ticketId}:
+    get:
+      operationId: getTicket
+      tags: [tickets]
+      summary: Get one ticket
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "404":
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateTicket
+      tags: [tickets]
+      summary: Update ticket state
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TicketUpdate"
+      responses:
+        "200":
+          description: Updated ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+  /tickets/{ticketId}/attachments:
+    post:
+      operationId: uploadTicketAttachment
+      tags: [tickets]
+      summary: Register a ticket attachment
+      description: Stores attachment metadata. Byte storage is enabled when object storage is configured.
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/AttachmentInput"
+      responses:
+        "201":
+          description: Attachment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestStorageUploadUrl
+      tags: [tickets]
+      summary: Request a direct object storage upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StorageUploadInput"
+      responses:
+        "200":
+          description: Presigned upload information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageUploadResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /payments/invoices:
+    get:
+      operationId: listPaymentInvoices
+      tags: [payments]
+      summary: List Litecoin invoices
+      responses:
+        "200":
+          description: Invoice list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentInvoice"
+    post:
+      operationId: createPaymentInvoice
+      tags: [payments]
+      summary: Create a Litecoin invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInvoiceInput"
+      responses:
+        "201":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentInvoice"
+  /payments/invoices/{invoiceId}:
+    get:
+      operationId: getPaymentInvoice
+      tags: [payments]
+      summary: Get invoice status
+      parameters:
+        - $ref: "#/components/parameters/InvoiceId"
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentInvoice"
+        "404":
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /payments/invoices/{invoiceId}/verify:
+    post:
+      operationId: verifyPaymentInvoice
+      tags: [payments]
+      summary: Verify a Litecoin transaction
+      parameters:
+        - $ref: "#/components/parameters/InvoiceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentVerificationInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerificationResult"
+components:
+  parameters:
+    TicketId:
+      name: ticketId
+      in: path
+      required: true
+      schema:
+        type: string
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    DashboardSummary:
+      type: object
+      properties:
+        products:
+          type: object
+          properties:
+            total:
+              type: integer
+            inStock:
+              type: integer
+            lowStock:
+              type: integer
+            outOfStock:
+              type: integer
+          required: [total, inStock, lowStock, outOfStock]
+        tickets:
+          type: object
+          properties:
+            open:
+              type: integer
+            waitingPayment:
+              type: integer
+            paid:
+              type: integer
+          required: [open, waitingPayment, paid]
+        payments:
+          type: object
+          properties:
+            paidCount:
+              type: integer
+            pendingCount:
+              type: integer
+            receivedLtc:
+              type: number
+          required: [paidCount, pendingCount, receivedLtc]
+        lastSyncAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [products, tickets, payments, lastSyncAt]
+    SystemStatus:
+      type: object
+      properties:
+        komerza:
+          type: string
+          enum: [connected, missing_credentials, unavailable]
+        discord:
+          type: string
+          enum: [connected, missing_credentials, unavailable]
+        litecoin:
+          type: string
+          enum: [ready, address_required, unavailable]
+        database:
+          type: string
+          enum: [connected, unavailable]
+      required: [komerza, discord, litecoin, database]
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        komerzaId:
+          type: ["string", "null"]
+        name:
+          type: string
+        sku:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        imageUrls:
+          type: array
+          items:
+            type: string
+        price:
+          type: number
+        currency:
+          type: string
+        stock:
+          type: integer
+        lowStockThreshold:
+          type: integer
+        status:
+          type: string
+          enum: [in_stock, low_stock, out_of_stock]
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, price, currency, stock, lowStockThreshold, status, updatedAt, imageUrls]
+    ProductSyncInput:
+      type: object
+      properties:
+        storeId:
+          type: string
+    ProductSyncResult:
+      type: object
+      properties:
+        synced:
+          type: integer
+        created:
+          type: integer
+        updated:
+          type: integer
+        lastSyncAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+      required: [synced, created, updated, lastSyncAt, source]
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+        channelId:
+          type: string
+        channelName:
+          type: string
+        customerName:
+          type: ["string", "null"]
+        customerId:
+          type: ["string", "null"]
+        productName:
+          type: ["string", "null"]
+        detectedProductId:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, waiting_payment, paid, closed]
+        hasLitecoinEmbed:
+          type: boolean
+        attachmentCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, channelId, channelName, status, hasLitecoinEmbed, attachmentCount, createdAt, updatedAt]
+    TicketUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, waiting_payment, paid, closed]
+        productId:
+          type: string
+    AttachmentInput:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+      required: [fileName, mimeType, size]
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+        ticketId:
+          type: string
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        objectPath:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, ticketId, fileName, mimeType, size, createdAt]
+    StorageUploadInput:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+      required: [name, size, contentType]
+    StorageUploadResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/StorageUploadInput"
+      required: [uploadURL, objectPath, metadata]
+    PaymentInvoice:
+      type: object
+      properties:
+        id:
+          type: string
+        ticketId:
+          type: ["string", "null"]
+        orderId:
+          type: ["string", "null"]
+        paymentAddress:
+          type: ["string", "null"]
+        paymentUrl:
+          type: ["string", "null"]
+        expectedAmountLtc:
+          type: number
+        expectedAmountFiat:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [WAITING_PAYMENT, PAYMENT_DETECTED, CONFIRMING, PAID, UNDERPAID, EXPIRED, INVALID]
+        txid:
+          type: ["string", "null"]
+        confirmations:
+          type: integer
+        requiredConfirmations:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, expectedAmountLtc, expectedAmountFiat, currency, status, confirmations, requiredConfirmations, expiresAt, createdAt, paymentUrl]
+    PaymentInvoiceInput:
+      type: object
+      properties:
+        ticketId:
+          type: string
+        orderId:
+          type: string
+        expectedAmountLtc:
+          type: number
+          exclusiveMinimum: 0
+        expectedAmountFiat:
+          type: number
+          exclusiveMinimum: 0
+        currency:
+          type: string
+      required: [expectedAmountLtc, expectedAmountFiat, currency]
+    PaymentVerificationInput:
+      type: object
+      properties:
+        txid:
+          type: string
+          minLength: 20
+          maxLength: 128
+      required: [txid]
+    PaymentVerificationResult:
+      type: object
+      properties:
+        invoice:
+          $ref: "#/components/schemas/PaymentInvoice"
+        valid:
+          type: boolean
+        message:
+          type: string
+        amountReceived:
+          type: number
+        addressMatched:
+          type: boolean
+        confirmations:
+          type: integer
+      required: [invoice, valid, message, amountReceived, addressMatched, confirmations]
+
