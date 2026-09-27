@@ -5,345 +5,1222 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import * as zod from 'zod';
+import {
+  useMutation,
+  useQuery
+} from '@tanstack/react-query';
+import type {
+  MutationFunction,
+  QueryFunction,
+  QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult
+} from '@tanstack/react-query';
 
+import type {
+  Attachment,
+  AttachmentInput,
+  DashboardSummary,
+  ErrorResponse,
+  HealthStatus,
+  ListProductsParams,
+  ListTicketsParams,
+  PaymentInvoice,
+  PaymentInvoiceInput,
+  PaymentVerificationInput,
+  PaymentVerificationResult,
+  Product,
+  ProductSyncInput,
+  ProductSyncResult,
+  StorageUploadInput,
+  StorageUploadResponse,
+  SystemStatus,
+  Ticket,
+  TicketUpdate
+} from './api.schemas';
+
+import { customFetch } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
+
+type AwaitedInput<T> = PromiseLike<T> | T;
+
+      type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
+
+
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
+
+const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
+  const result = { queryKey } as T & { queryKey: K };
+  for (const key of Object.keys(query)) {
+    // The explicit queryKey always wins, matching the previous
+    // `{ ...query, queryKey }` spread where it was set last.
+    if (key === 'queryKey') continue;
+    Object.defineProperty(result, key, {
+      enumerable: true,
+      configurable: true,
+      get: () => (query as Record<string, unknown>)[key],
+    });
+  }
+  return result;
+};
+
+export const getHealthCheckUrl = () => {
+
+
+
+
+  return `/api/healthz`
+}
 
 /**
  * Returns server health status
  * @summary Health check
  */
-export const HealthCheckResponse = zod.object({
-  "status": zod.string()
-})
+export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getHealthCheckUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHealthCheckQueryKey = () => {
+    return [
+    `/api/healthz`
+    ] as const;
+    }
+
+
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthCheckQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthCheck>>> = ({ signal }) => healthCheck({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
+export type HealthCheckQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Health check
+ */
+
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDashboardSummaryUrl = () => {
+
+
+
+
+  return `/api/dashboard/summary`
+}
+
+/**
+ * @summary Get dashboard summary
+ */
+export const getDashboardSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<DashboardSummary> => {
+
+  return customFetch<DashboardSummary>(getGetDashboardSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDashboardSummaryQueryKey = () => {
+    return [
+    `/api/dashboard/summary`
+    ] as const;
+    }
+
+
+export const getGetDashboardSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getDashboardSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDashboardSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboardSummary>>> = ({ signal }) => getDashboardSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDashboardSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboardSummary>>>
+export type GetDashboardSummaryQueryError = ErrorType<unknown>
 
 
 /**
  * @summary Get dashboard summary
  */
-export const GetDashboardSummaryResponse = zod.object({
-  "products": zod.object({
-  "total": zod.number().int(),
-  "inStock": zod.number().int(),
-  "lowStock": zod.number().int(),
-  "outOfStock": zod.number().int()
-}),
-  "tickets": zod.object({
-  "open": zod.number().int(),
-  "waitingPayment": zod.number().int(),
-  "paid": zod.number().int()
-}),
-  "payments": zod.object({
-  "paidCount": zod.number().int(),
-  "pendingCount": zod.number().int(),
-  "receivedLtc": zod.number()
-}),
-  "lastSyncAt": zod.coerce.date().nullable()
-})
+
+export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDashboardSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDashboardSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDashboardSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSystemStatusUrl = () => {
+
+
+
+
+  return `/api/system/status`
+}
+
+/**
+ * @summary Get integration and system status
+ */
+export const getSystemStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<SystemStatus> => {
+
+  return customFetch<SystemStatus>(getGetSystemStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSystemStatusQueryKey = () => {
+    return [
+    `/api/system/status`
+    ] as const;
+    }
+
+
+export const getGetSystemStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSystemStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSystemStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemStatus>>> = ({ signal }) => getSystemStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSystemStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSystemStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSystemStatus>>>
+export type GetSystemStatusQueryError = ErrorType<unknown>
 
 
 /**
  * @summary Get integration and system status
  */
-export const GetSystemStatusResponse = zod.object({
-  "komerza": zod.enum(['connected', 'missing_credentials', 'unavailable']),
-  "discord": zod.enum(['connected', 'missing_credentials', 'unavailable']),
-  "litecoin": zod.enum(['ready', 'address_required', 'unavailable']),
-  "database": zod.enum(['connected', 'unavailable'])
-})
+
+export function useGetSystemStatus<TData = Awaited<ReturnType<typeof getSystemStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSystemStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProductsUrl = (params?: ListProductsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/products?${stringifiedParams}` : `/api/products`
+}
+
+/**
+ * @summary List synced products
+ */
+export const listProducts = async (params?: ListProductsParams, options?: Parameters<typeof customFetch>[1]): Promise<Product[]> => {
+
+  return customFetch<Product[]>(getListProductsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductsQueryKey = (params?: ListProductsParams,) => {
+    return [
+    `/api/products`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProductsQueryOptions = <TData = Awaited<ReturnType<typeof listProducts>>, TError = ErrorType<unknown>>(params?: ListProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProducts>>> = ({ signal }) => listProducts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProducts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductsQueryResult = NonNullable<Awaited<ReturnType<typeof listProducts>>>
+export type ListProductsQueryError = ErrorType<unknown>
 
 
 /**
  * @summary List synced products
  */
-export const listProductsQueryStockDefault = `all`;
 
-export const ListProductsQueryParams = zod.object({
-  "search": zod.coerce.string().optional(),
-  "stock": zod.enum(['all', 'in_stock', 'low_stock', 'out_of_stock']).default(listProductsQueryStockDefault)
-})
+export function useListProducts<TData = Awaited<ReturnType<typeof listProducts>>, TError = ErrorType<unknown>>(
+ params?: ListProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
-export const ListProductsResponseItem = zod.object({
-  "id": zod.string(),
-  "komerzaId": zod.string().nullish(),
-  "name": zod.string(),
-  "sku": zod.string().nullish(),
-  "imageUrl": zod.string().nullish(),
-  "imageUrls": zod.array(zod.string()),
-  "price": zod.number(),
-  "currency": zod.string(),
-  "stock": zod.number().int(),
-  "lowStockThreshold": zod.number().int(),
-  "status": zod.enum(['in_stock', 'low_stock', 'out_of_stock']),
-  "updatedAt": zod.coerce.date()
-})
-export const ListProductsResponse = zod.array(ListProductsResponseItem)
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
+  const queryOptions = getListProductsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSyncProductsUrl = () => {
+
+
+
+
+  return `/api/products/sync`
+}
 
 /**
  * @summary Sync products from Komerza
  */
-export const SyncProductsBody = zod.object({
-  "storeId": zod.string().optional()
-})
+export const syncProducts = async (productSyncInput?: ProductSyncInput, options?: Parameters<typeof customFetch>[1]): Promise<ProductSyncResult> => {
 
-export const SyncProductsResponse = zod.object({
-  "synced": zod.number().int(),
-  "created": zod.number().int(),
-  "updated": zod.number().int(),
-  "lastSyncAt": zod.coerce.date(),
-  "source": zod.string()
-})
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ProductSyncResult>(getSyncProductsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productSyncInput)
+  }
+);}
+
+
+
+
+
+export const getSyncProductsMutationKey = () => ['syncProducts'] as const;
+
+export const getSyncProductsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncProducts>>, TError,SyncProductsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncProducts>>, TError,SyncProductsMutationVariables, TContext> => {
+
+const mutationKey = getSyncProductsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncProducts>>, SyncProductsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncProducts(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncProductsMutationResult = NonNullable<Awaited<ReturnType<typeof syncProducts>>>
+    export type SyncProductsMutationBody = BodyType<ProductSyncInput> | undefined
+    export type SyncProductsMutationError = ErrorType<ErrorResponse>
+    export type SyncProductsMutationVariables = {data?: BodyType<ProductSyncInput>}
+
+    /**
+ * @summary Sync products from Komerza
+ */
+export const useSyncProducts = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncProducts>>, TError,SyncProductsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncProducts>>,
+        TError,
+        SyncProductsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncProductsMutationOptions(options));
+    }
+
+export const getListTicketsUrl = (params?: ListTicketsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tickets?${stringifiedParams}` : `/api/tickets`
+}
+
+/**
+ * @summary List Discord ticket channels
+ */
+export const listTickets = async (params?: ListTicketsParams, options?: Parameters<typeof customFetch>[1]): Promise<Ticket[]> => {
+
+  return customFetch<Ticket[]>(getListTicketsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTicketsQueryKey = (params?: ListTicketsParams,) => {
+    return [
+    `/api/tickets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTicketsQueryOptions = <TData = Awaited<ReturnType<typeof listTickets>>, TError = ErrorType<unknown>>(params?: ListTicketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTicketsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTickets>>> = ({ signal }) => listTickets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof listTickets>>>
+export type ListTicketsQueryError = ErrorType<unknown>
 
 
 /**
  * @summary List Discord ticket channels
  */
-export const listTicketsQueryStatusDefault = `all`;
 
-export const ListTicketsQueryParams = zod.object({
-  "status": zod.enum(['all', 'open', 'waiting_payment', 'paid', 'closed']).default(listTicketsQueryStatusDefault)
-})
+export function useListTickets<TData = Awaited<ReturnType<typeof listTickets>>, TError = ErrorType<unknown>>(
+ params?: ListTicketsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
-export const ListTicketsResponseItem = zod.object({
-  "id": zod.string(),
-  "channelId": zod.string(),
-  "channelName": zod.string(),
-  "customerName": zod.string().nullish(),
-  "customerId": zod.string().nullish(),
-  "productName": zod.string().nullish(),
-  "detectedProductId": zod.string().nullish(),
-  "status": zod.enum(['open', 'waiting_payment', 'paid', 'closed']),
-  "hasLitecoinEmbed": zod.boolean(),
-  "attachmentCount": zod.number().int(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-export const ListTicketsResponse = zod.array(ListTicketsResponseItem)
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTicketsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetTicketUrl = (ticketId: string,) => {
+
+
+
+
+  return `/api/tickets/${ticketId}`
+}
+
+/**
+ * @summary Get one ticket
+ */
+export const getTicket = async (ticketId: string, options?: Parameters<typeof customFetch>[1]): Promise<Ticket> => {
+
+  return customFetch<Ticket>(getGetTicketUrl(ticketId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTicketQueryKey = (ticketId: string,) => {
+    return [
+    `/api/tickets/${ticketId}`
+    ] as const;
+    }
+
+
+export const getGetTicketQueryOptions = <TData = Awaited<ReturnType<typeof getTicket>>, TError = ErrorType<ErrorResponse>>(ticketId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTicket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTicketQueryKey(ticketId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTicket>>> = ({ signal }) => getTicket(ticketId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: ticketId !== null && ticketId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTicket>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTicketQueryResult = NonNullable<Awaited<ReturnType<typeof getTicket>>>
+export type GetTicketQueryError = ErrorType<ErrorResponse>
 
 
 /**
  * @summary Get one ticket
  */
-export const GetTicketParams = zod.object({
-  "ticketId": zod.coerce.string()
-})
 
-export const GetTicketResponse = zod.object({
-  "id": zod.string(),
-  "channelId": zod.string(),
-  "channelName": zod.string(),
-  "customerName": zod.string().nullish(),
-  "customerId": zod.string().nullish(),
-  "productName": zod.string().nullish(),
-  "detectedProductId": zod.string().nullish(),
-  "status": zod.enum(['open', 'waiting_payment', 'paid', 'closed']),
-  "hasLitecoinEmbed": zod.boolean(),
-  "attachmentCount": zod.number().int(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
+export function useGetTicket<TData = Awaited<ReturnType<typeof getTicket>>, TError = ErrorType<ErrorResponse>>(
+ ticketId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTicket>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTicketQueryOptions(ticketId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTicketUrl = (ticketId: string,) => {
+
+
+
+
+  return `/api/tickets/${ticketId}`
+}
 
 /**
  * @summary Update ticket state
  */
-export const UpdateTicketParams = zod.object({
-  "ticketId": zod.coerce.string()
-})
+export const updateTicket = async (ticketId: string,
+    ticketUpdate: TicketUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Ticket> => {
 
-export const UpdateTicketBody = zod.object({
-  "status": zod.enum(['open', 'waiting_payment', 'paid', 'closed']).optional(),
-  "productId": zod.string().optional()
-})
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Ticket>(getUpdateTicketUrl(ticketId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ticketUpdate)
+  }
+);}
 
-export const UpdateTicketResponse = zod.object({
-  "id": zod.string(),
-  "channelId": zod.string(),
-  "channelName": zod.string(),
-  "customerName": zod.string().nullish(),
-  "customerId": zod.string().nullish(),
-  "productName": zod.string().nullish(),
-  "detectedProductId": zod.string().nullish(),
-  "status": zod.enum(['open', 'waiting_payment', 'paid', 'closed']),
-  "hasLitecoinEmbed": zod.boolean(),
-  "attachmentCount": zod.number().int(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
 
+
+
+
+export const getUpdateTicketMutationKey = () => ['updateTicket'] as const;
+
+export const getUpdateTicketMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext> => {
+
+const mutationKey = getUpdateTicketMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTicket>>, UpdateTicketMutationVariables> = (props) => {
+          const {ticketId,data} = props ?? {};
+
+          return  updateTicket(ticketId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTicketMutationResult = NonNullable<Awaited<ReturnType<typeof updateTicket>>>
+    export type UpdateTicketMutationBody = BodyType<TicketUpdate>
+    export type UpdateTicketMutationError = ErrorType<unknown>
+    export type UpdateTicketMutationVariables = {ticketId: string;data: BodyType<TicketUpdate>}
+
+    /**
+ * @summary Update ticket state
+ */
+export const useUpdateTicket = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTicket>>, TError,UpdateTicketMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTicket>>,
+        TError,
+        UpdateTicketMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateTicketMutationOptions(options));
+    }
+
+export const getUploadTicketAttachmentUrl = (ticketId: string,) => {
+
+
+
+
+  return `/api/tickets/${ticketId}/attachments`
+}
 
 /**
  * Stores attachment metadata. Byte storage is enabled when object storage is configured.
  * @summary Register a ticket attachment
  */
-export const UploadTicketAttachmentParams = zod.object({
-  "ticketId": zod.coerce.string()
-})
+export const uploadTicketAttachment = async (ticketId: string,
+    attachmentInput: AttachmentInput, options?: Parameters<typeof customFetch>[1]): Promise<Attachment> => {
+    const formData = new FormData();
+if(attachmentInput.file !== undefined) {
+ formData.append(`file`, attachmentInput.file);
+ }
+formData.append(`fileName`, attachmentInput.fileName);
+formData.append(`mimeType`, attachmentInput.mimeType);
+formData.append(`size`, attachmentInput.size.toString())
 
-export const UploadTicketAttachmentBody = zod.object({
-  "file": zod.instanceof(Blob).optional(),
-  "fileName": zod.string(),
-  "mimeType": zod.string(),
-  "size": zod.number().int()
-})
+  return customFetch<Attachment>(getUploadTicketAttachmentUrl(ticketId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
 
-export const UploadTicketAttachmentResponse = zod.object({
-  "id": zod.string(),
-  "ticketId": zod.string(),
-  "fileName": zod.string(),
-  "mimeType": zod.string(),
-  "size": zod.number().int(),
-  "objectPath": zod.string().nullish(),
-  "createdAt": zod.coerce.date()
-})
 
+
+
+
+export const getUploadTicketAttachmentMutationKey = () => ['uploadTicketAttachment'] as const;
+
+export const getUploadTicketAttachmentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadTicketAttachment>>, TError,UploadTicketAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadTicketAttachment>>, TError,UploadTicketAttachmentMutationVariables, TContext> => {
+
+const mutationKey = getUploadTicketAttachmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadTicketAttachment>>, UploadTicketAttachmentMutationVariables> = (props) => {
+          const {ticketId,data} = props ?? {};
+
+          return  uploadTicketAttachment(ticketId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadTicketAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadTicketAttachment>>>
+    export type UploadTicketAttachmentMutationBody = BodyType<AttachmentInput>
+    export type UploadTicketAttachmentMutationError = ErrorType<unknown>
+    export type UploadTicketAttachmentMutationVariables = {ticketId: string;data: BodyType<AttachmentInput>}
+
+    /**
+ * @summary Register a ticket attachment
+ */
+export const useUploadTicketAttachment = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadTicketAttachment>>, TError,UploadTicketAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadTicketAttachment>>,
+        TError,
+        UploadTicketAttachmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadTicketAttachmentMutationOptions(options));
+    }
+
+export const getRequestStorageUploadUrlUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/request-url`
+}
 
 /**
  * @summary Request a direct object storage upload URL
  */
+export const requestStorageUploadUrl = async (storageUploadInput: StorageUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<StorageUploadResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StorageUploadResponse>(getRequestStorageUploadUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(storageUploadInput)
+  }
+);}
 
 
 
-export const RequestStorageUploadUrlBody = zod.object({
-  "name": zod.string(),
-  "size": zod.number().int().min(1),
-  "contentType": zod.string()
-})
+
+
+export const getRequestStorageUploadUrlMutationKey = () => ['requestStorageUploadUrl'] as const;
+
+export const getRequestStorageUploadUrlMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStorageUploadUrl>>, TError,RequestStorageUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestStorageUploadUrl>>, TError,RequestStorageUploadUrlMutationVariables, TContext> => {
+
+const mutationKey = getRequestStorageUploadUrlMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
 
 
 
-export const RequestStorageUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url(),
-  "objectPath": zod.string(),
-  "metadata": zod.object({
-  "name": zod.string(),
-  "size": zod.number().int().min(1),
-  "contentType": zod.string()
-})
-})
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestStorageUploadUrl>>, RequestStorageUploadUrlMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestStorageUploadUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestStorageUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestStorageUploadUrl>>>
+    export type RequestStorageUploadUrlMutationBody = BodyType<StorageUploadInput>
+    export type RequestStorageUploadUrlMutationError = ErrorType<ErrorResponse>
+    export type RequestStorageUploadUrlMutationVariables = {data: BodyType<StorageUploadInput>}
+
+    /**
+ * @summary Request a direct object storage upload URL
+ */
+export const useRequestStorageUploadUrl = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestStorageUploadUrl>>, TError,RequestStorageUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestStorageUploadUrl>>,
+        TError,
+        RequestStorageUploadUrlMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestStorageUploadUrlMutationOptions(options));
+    }
+
+export const getListPaymentInvoicesUrl = () => {
+
+
+
+
+  return `/api/payments/invoices`
+}
+
+/**
+ * @summary List Litecoin invoices
+ */
+export const listPaymentInvoices = async ( options?: Parameters<typeof customFetch>[1]): Promise<PaymentInvoice[]> => {
+
+  return customFetch<PaymentInvoice[]>(getListPaymentInvoicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentInvoicesQueryKey = () => {
+    return [
+    `/api/payments/invoices`
+    ] as const;
+    }
+
+
+export const getListPaymentInvoicesQueryOptions = <TData = Awaited<ReturnType<typeof listPaymentInvoices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentInvoicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPaymentInvoices>>> = ({ signal }) => listPaymentInvoices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPaymentInvoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentInvoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listPaymentInvoices>>>
+export type ListPaymentInvoicesQueryError = ErrorType<unknown>
 
 
 /**
  * @summary List Litecoin invoices
  */
-export const ListPaymentInvoicesResponseItem = zod.object({
-  "id": zod.string(),
-  "ticketId": zod.string().nullish(),
-  "orderId": zod.string().nullish(),
-  "paymentAddress": zod.string().nullish(),
-  "expectedAmountLtc": zod.number(),
-  "expectedAmountFiat": zod.number(),
-  "currency": zod.string(),
-  "status": zod.enum(['WAITING_PAYMENT', 'PAYMENT_DETECTED', 'CONFIRMING', 'PAID', 'UNDERPAID', 'EXPIRED', 'INVALID']),
-  "txid": zod.string().nullish(),
-  "confirmations": zod.number().int(),
-  "requiredConfirmations": zod.number().int(),
-  "expiresAt": zod.coerce.date(),
-  "paidAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date()
-})
-export const ListPaymentInvoicesResponse = zod.array(ListPaymentInvoicesResponseItem)
 
+export function useListPaymentInvoices<TData = Awaited<ReturnType<typeof listPaymentInvoices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentInvoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentInvoicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePaymentInvoiceUrl = () => {
+
+
+
+
+  return `/api/payments/invoices`
+}
 
 /**
  * @summary Create a Litecoin invoice
  */
-export const createPaymentInvoiceBodyExpectedAmountLtcExclusiveMin = 0;
+export const createPaymentInvoice = async (paymentInvoiceInput: PaymentInvoiceInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentInvoice> => {
 
-export const createPaymentInvoiceBodyExpectedAmountFiatExclusiveMin = 0;
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentInvoice>(getCreatePaymentInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentInvoiceInput)
+  }
+);}
 
 
 
-export const CreatePaymentInvoiceBody = zod.object({
-  "ticketId": zod.string().optional(),
-  "orderId": zod.string().optional(),
-  "expectedAmountLtc": zod.number().gt(createPaymentInvoiceBodyExpectedAmountLtcExclusiveMin),
-  "expectedAmountFiat": zod.number().gt(createPaymentInvoiceBodyExpectedAmountFiatExclusiveMin),
-  "currency": zod.string()
-})
 
-export const CreatePaymentInvoiceResponse = zod.object({
-  "id": zod.string(),
-  "ticketId": zod.string().nullish(),
-  "orderId": zod.string().nullish(),
-  "paymentAddress": zod.string().nullish(),
-  "expectedAmountLtc": zod.number(),
-  "expectedAmountFiat": zod.number(),
-  "currency": zod.string(),
-  "status": zod.enum(['WAITING_PAYMENT', 'PAYMENT_DETECTED', 'CONFIRMING', 'PAID', 'UNDERPAID', 'EXPIRED', 'INVALID']),
-  "txid": zod.string().nullish(),
-  "confirmations": zod.number().int(),
-  "requiredConfirmations": zod.number().int(),
-  "expiresAt": zod.coerce.date(),
-  "paidAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date()
-})
+
+export const getCreatePaymentInvoiceMutationKey = () => ['createPaymentInvoice'] as const;
+
+export const getCreatePaymentInvoiceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentInvoice>>, TError,CreatePaymentInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentInvoice>>, TError,CreatePaymentInvoiceMutationVariables, TContext> => {
+
+const mutationKey = getCreatePaymentInvoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentInvoice>>, CreatePaymentInvoiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPaymentInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentInvoice>>>
+    export type CreatePaymentInvoiceMutationBody = BodyType<PaymentInvoiceInput>
+    export type CreatePaymentInvoiceMutationError = ErrorType<unknown>
+    export type CreatePaymentInvoiceMutationVariables = {data: BodyType<PaymentInvoiceInput>}
+
+    /**
+ * @summary Create a Litecoin invoice
+ */
+export const useCreatePaymentInvoice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentInvoice>>, TError,CreatePaymentInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPaymentInvoice>>,
+        TError,
+        CreatePaymentInvoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePaymentInvoiceMutationOptions(options));
+    }
+
+export const getGetPaymentInvoiceUrl = (invoiceId: string,) => {
+
+
+
+
+  return `/api/payments/invoices/${invoiceId}`
+}
+
+/**
+ * @summary Get invoice status
+ */
+export const getPaymentInvoice = async (invoiceId: string, options?: Parameters<typeof customFetch>[1]): Promise<PaymentInvoice> => {
+
+  return customFetch<PaymentInvoice>(getGetPaymentInvoiceUrl(invoiceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPaymentInvoiceQueryKey = (invoiceId: string,) => {
+    return [
+    `/api/payments/invoices/${invoiceId}`
+    ] as const;
+    }
+
+
+export const getGetPaymentInvoiceQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentInvoice>>, TError = ErrorType<ErrorResponse>>(invoiceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPaymentInvoiceQueryKey(invoiceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentInvoice>>> = ({ signal }) => getPaymentInvoice(invoiceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: invoiceId !== null && invoiceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentInvoice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPaymentInvoiceQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentInvoice>>>
+export type GetPaymentInvoiceQueryError = ErrorType<ErrorResponse>
 
 
 /**
  * @summary Get invoice status
  */
-export const GetPaymentInvoiceParams = zod.object({
-  "invoiceId": zod.coerce.string()
-})
 
-export const GetPaymentInvoiceResponse = zod.object({
-  "id": zod.string(),
-  "ticketId": zod.string().nullish(),
-  "orderId": zod.string().nullish(),
-  "paymentAddress": zod.string().nullish(),
-  "expectedAmountLtc": zod.number(),
-  "expectedAmountFiat": zod.number(),
-  "currency": zod.string(),
-  "status": zod.enum(['WAITING_PAYMENT', 'PAYMENT_DETECTED', 'CONFIRMING', 'PAID', 'UNDERPAID', 'EXPIRED', 'INVALID']),
-  "txid": zod.string().nullish(),
-  "confirmations": zod.number().int(),
-  "requiredConfirmations": zod.number().int(),
-  "expiresAt": zod.coerce.date(),
-  "paidAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date()
-})
+export function useGetPaymentInvoice<TData = Awaited<ReturnType<typeof getPaymentInvoice>>, TError = ErrorType<ErrorResponse>>(
+ invoiceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPaymentInvoice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPaymentInvoiceQueryOptions(invoiceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getVerifyPaymentInvoiceUrl = (invoiceId: string,) => {
+
+
+
+
+  return `/api/payments/invoices/${invoiceId}/verify`
+}
 
 /**
  * @summary Verify a Litecoin transaction
  */
-export const VerifyPaymentInvoiceParams = zod.object({
-  "invoiceId": zod.coerce.string()
-})
+export const verifyPaymentInvoice = async (invoiceId: string,
+    paymentVerificationInput: PaymentVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentVerificationResult> => {
 
-export const verifyPaymentInvoiceBodyTxidMin = 20;
-export const verifyPaymentInvoiceBodyTxidMax = 128;
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PaymentVerificationResult>(getVerifyPaymentInvoiceUrl(invoiceId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(paymentVerificationInput)
+  }
+);}
 
 
 
-export const VerifyPaymentInvoiceBody = zod.object({
-  "txid": zod.string().min(verifyPaymentInvoiceBodyTxidMin).max(verifyPaymentInvoiceBodyTxidMax)
-})
 
-export const VerifyPaymentInvoiceResponse = zod.object({
-  "invoice": zod.object({
-  "id": zod.string(),
-  "ticketId": zod.string().nullish(),
-  "orderId": zod.string().nullish(),
-  "paymentAddress": zod.string().nullish(),
-  "expectedAmountLtc": zod.number(),
-  "expectedAmountFiat": zod.number(),
-  "currency": zod.string(),
-  "status": zod.enum(['WAITING_PAYMENT', 'PAYMENT_DETECTED', 'CONFIRMING', 'PAID', 'UNDERPAID', 'EXPIRED', 'INVALID']),
-  "txid": zod.string().nullish(),
-  "confirmations": zod.number().int(),
-  "requiredConfirmations": zod.number().int(),
-  "expiresAt": zod.coerce.date(),
-  "paidAt": zod.coerce.date().nullish(),
-  "createdAt": zod.coerce.date()
-}),
-  "valid": zod.boolean(),
-  "message": zod.string(),
-  "amountReceived": zod.number(),
-  "addressMatched": zod.boolean(),
-  "confirmations": zod.number().int()
-})
 
+export const getVerifyPaymentInvoiceMutationKey = () => ['verifyPaymentInvoice'] as const;
+
+export const getVerifyPaymentInvoiceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPaymentInvoice>>, TError,VerifyPaymentInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyPaymentInvoice>>, TError,VerifyPaymentInvoiceMutationVariables, TContext> => {
+
+const mutationKey = getVerifyPaymentInvoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyPaymentInvoice>>, VerifyPaymentInvoiceMutationVariables> = (props) => {
+          const {invoiceId,data} = props ?? {};
+
+          return  verifyPaymentInvoice(invoiceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyPaymentInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof verifyPaymentInvoice>>>
+    export type VerifyPaymentInvoiceMutationBody = BodyType<PaymentVerificationInput>
+    export type VerifyPaymentInvoiceMutationError = ErrorType<unknown>
+    export type VerifyPaymentInvoiceMutationVariables = {invoiceId: string;data: BodyType<PaymentVerificationInput>}
+
+    /**
+ * @summary Verify a Litecoin transaction
+ */
+export const useVerifyPaymentInvoice = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyPaymentInvoice>>, TError,VerifyPaymentInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyPaymentInvoice>>,
+        TError,
+        VerifyPaymentInvoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyPaymentInvoiceMutationOptions(options));
+    }
 

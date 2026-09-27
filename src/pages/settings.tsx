@@ -1,0 +1,32 @@
+import { getGetSystemStatusQueryKey, useGetSystemStatus } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, CircleAlert, Database, ExternalLink, KeyRound, LifeBuoy, MessageSquare, Package, RefreshCw, Server, WalletCards } from 'lucide-react';
+import { PageHeader, QueryState, StatusBadge } from '@/components/shop-shell';
+
+const connectionMeta = [
+  { key: 'komerza', name: 'Komerza catalogue', description: 'Product names, prices, and stock levels', icon: Package, good: 'connected', missing: 'missing_credentials' },
+  { key: 'discord', name: 'Discord gateway', description: 'Ticket channels and customer context', icon: MessageSquare, good: 'connected', missing: 'missing_credentials' },
+  { key: 'litecoin', name: 'Litecoin rail', description: 'Addresses, invoices, and confirmations', icon: WalletCards, good: 'ready', missing: 'address_required' },
+  { key: 'database', name: 'Operational database', description: 'Durable state for orders and events', icon: Database, good: 'connected', missing: '' },
+] as const;
+
+export default function Settings() {
+  const queryClient = useQueryClient();
+  const system = useGetSystemStatus();
+  const status = system.data;
+  return <div>
+    <PageHeader eyebrow="Runtime configuration" title="Settings" description="Connection health and automation posture for the shop bot." action={<button onClick={() => queryClient.invalidateQueries({ queryKey: getGetSystemStatusQueryKey() })} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:border-primary/40 hover:text-primary" data-testid="button-refresh-status"><RefreshCw size={15} />Refresh status</button>} />
+    <QueryState loading={system.isLoading} error={system.isError} retry={() => system.refetch()}>
+      <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
+        <section className="rounded-xl border border-border bg-card p-5 shadow-sm md:p-6 animate-enter animate-enter-1"><div className="flex items-start justify-between"><div><p className="font-mono-ops text-[10px] uppercase tracking-[.18em] text-primary">Integration matrix</p><h2 className="mt-2 text-lg font-semibold">Connected services</h2><p className="mt-1 text-xs text-muted-foreground">The API reports the real runtime state. Missing credentials are never treated as healthy.</p></div><Server size={18} className="text-muted-foreground" /></div><div className="mt-5 divide-y divide-border/70">
+          {connectionMeta.map((item) => { const Icon = item.icon; const value = status?.[item.key]; const healthy = value === item.good; const needsSetup = value === item.missing; return <div key={item.key} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"><div className="flex min-w-0 items-center gap-3"><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${healthy ? 'bg-primary/10 text-primary' : needsSetup ? 'bg-chart-3/10 text-chart-3' : 'bg-destructive/10 text-destructive'}`}><Icon size={17} /></span><div className="min-w-0"><p className="truncate text-sm font-medium">{item.name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{item.description}</p></div></div><StatusBadge label={value ?? 'unknown'} tone={healthy ? 'good' : needsSetup ? 'warn' : 'bad'} /></div>; })}
+        </div></section>
+        <div className="space-y-5">
+          <section className="rounded-xl border border-border bg-card p-5 shadow-sm animate-enter animate-enter-2"><div className="flex items-start gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-chart-3/10 text-chart-3"><KeyRound size={17} /></span><div><p className="text-sm font-semibold">Credential posture</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Secrets are managed by the API runtime. Add the missing provider credentials there, then refresh this panel.</p></div></div><div className="mt-5 rounded-lg border border-chart-3/20 bg-chart-3/5 p-3"><div className="flex items-center gap-2 text-xs font-medium text-chart-3"><CircleAlert size={14} /> Setup is provider-dependent</div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">The operator UI will remain usable while integrations are unavailable.</p></div></section>
+          <section className="rounded-xl border border-border bg-card p-5 shadow-sm animate-enter animate-enter-3"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-accent/10 text-accent"><LifeBuoy size={17} /></span><div><p className="text-sm font-semibold">Automation overview</p><p className="mt-1 text-xs text-muted-foreground">Current bot responsibilities</p></div></div><div className="mt-5 space-y-3">{[['Ticket detection', status?.discord === 'connected'], ['Payment monitoring', status?.litecoin === 'ready'], ['Stock synchronization', status?.komerza === 'connected']].map(([label, active]) => <div key={String(label)} className="flex items-center justify-between border-b border-border/70 pb-3 last:border-0 last:pb-0"><span className="text-xs text-muted-foreground">{String(label)}</span>{active ? <span className="flex items-center gap-1.5 text-[10px] font-medium text-primary"><CheckCircle2 size={13} /> ACTIVE</span> : <span className="text-[10px] font-medium text-muted-foreground">PAUSED</span>}</div>)}</div></section>
+        </div>
+      </div>
+      <section className="mt-5 rounded-xl border border-border bg-card p-5 shadow-sm animate-enter animate-enter-3"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="font-mono-ops text-[10px] uppercase tracking-[.18em] text-muted-foreground">Operator note</p><h2 className="mt-2 text-lg font-semibold">Configuration lives close to the runtime.</h2><p className="mt-1 max-w-2xl text-sm text-muted-foreground">This console intentionally exposes status, not secret values. Use the server environment to configure Komerza, Discord, Litecoin, and database connections.</p></div><a href="/api/healthz" target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium transition-colors hover:border-primary/40 hover:text-primary" data-testid="link-api-health"><ExternalLink size={14} />Open API health</a></div></section>
+    </QueryState>
+  </div>;
+}
